@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OrgoAI — Organic Chemistry Tutor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/smiles-drawer@2.0.3/dist/smiles-drawer.min.js"></script>
+<style>
+  :root {
+    --ink: #0e0e0e;
+    --paper: #f5f2eb;
+    --cream: #ede9df;
+    --accent: #c8401a;
+    --accent-light: #f2ded7;
+    --muted: #7a7570;
+    --border: #d4cfc6;
+    --card-bg: #faf8f4;
+    --step-bg: #f0ede6;
+    --green: #1a6b3a;
+    --green-light: #dff0e7;
+    --blue: #1a3d6b;
+    --blue-light: #dce8f5;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Instrument Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* Header */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    background: var(--paper);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .logo span { color: var(--accent); }
+
+  .header-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Main layout */
+  main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 3rem 2rem 4rem;
+  }
+
+  .hero {
+    margin-bottom: 2.5rem;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .hero h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(28px, 4vw, 40px);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+  }
+  .hero h1 em { color: var(--accent); font-style: italic; }
+
+  .hero p {
+    font-size: 15px;
+    color: var(--muted);
+    max-width: 480px;
+  }
+
+  /* Controls */
+  .controls-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+    animation: fadeUp 0.5s 0.1s ease both;
+  }
+
+  select {
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 13px;
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--ink);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a7570' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+  select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .gen-btn {
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: background 0.15s, transform 0.1s;
+    letter-spacing: 0.01em;
+  }
+  .gen-btn:hover { background: #a83415; }
+  .gen-btn:active { transform: scale(0.97); }
+  .gen-btn:disabled { background: var(--border); cursor: not-allowed; color: var(--muted); }
+
+  .spin { animation: spin 0.8s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Problem card */
+  .problem-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.75rem;
+    margin-bottom: 1rem;
+    animation: fadeUp 0.4s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .problem-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--accent);
+    border-radius: 12px 0 0 12px;
+  }
+
+  .card-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+
+  .tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    padding: 3px 9px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .tag-topic { background: var(--accent-light); color: var(--accent); }
+  .tag-diff { background: var(--step-bg); color: var(--muted); }
+
+  .problem-q {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink);
+    margin-bottom: 1.5rem;
+  }
+
+  /* Reaction display */
+  .reaction-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .mol-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mol-block canvas {
+    display: block;
+  }
+
+  .mol-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+    text-align: center;
+    max-width: 140px;
+  }
+
+  .rxn-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 0 4px;
+  }
+
+  .arrow-line {
+    font-size: 26px;
+    color: var(--ink);
+    line-height: 1;
+    margin-top: 16px;
+  }
+
+  .reagent-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    text-align: center;
+    max-width: 100px;
+    line-height: 1.3;
+  }
+
+  .question-box {
+    width: 140px;
+    height: 110px;
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--border);
+    font-size: 28px;
+  }
+
+  /* Action buttons */
+  .action-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+
+  .outline-btn {
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 13px;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .outline-btn:hover { background: var(--cream); border-color: var(--muted); }
+  .outline-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  /* Solution section */
+  .solution-section {
+    animation: fadeUp 0.35s ease both;
+  }
+
+  .steps-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+
+  .step-item {
+    display: flex;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+    animation: fadeUp 0.3s ease both;
+  }
+  .step-item:last-child { border-bottom: none; padding-bottom: 0; }
+
+  .step-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    padding-top: 2px;
+  }
+
+  .step-struct {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+  }
+
+  .step-struct canvas {
+    display: block;
+  }
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+  }
+
+  .step-content {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink);
+  }
+
+  /* Answer card */
+  .answer-card {
+    background: var(--green-light);
+    border: 1px solid #a8d5bc;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+
+  .answer-label-block .label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 4px;
+  }
+
+  .answer-name {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--green);
+  }
+
+  .answer-mol {
+    background: white;
+    border-radius: 8px;
+    padding: 8px;
+    border: 1px solid #a8d5bc;
+  }
+
+  /* Explanation card */
+  .explanation-card {
+    background: var(--blue-light);
+    border: 1px solid #a8c4e0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .explanation-card .section-label { color: var(--blue); }
+  .explanation-card p { font-size: 14px; line-height: 1.7; color: #1a2f4a; }
+
+  /* Hint */
+  .hint-card {
+    background: #fef9ec;
+    border: 1px solid #f0d88a;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #5a4500;
+  }
+  .hint-card .section-label { color: #9a7200; margin-bottom: 8px; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--muted);
+    animation: fadeUp 0.5s 0.2s ease both;
+  }
+
+  .empty-icon {
+    font-family: 'DM Serif Display', serif;
+    font-size: 48px;
+    font-style: italic;
+    color: var(--border);
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  .empty-state p {
+    font-size: 15px;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  /* Error */
+  .error-msg {
+    background: #fdecea;
+    border: 1px solid #f5bcb8;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    font-size: 13px;
+    color: #8b1a14;
+    margin-bottom: 1rem;
+  }
+
+  /* Loading skeleton */
+  .skeleton {
+    background: linear-gradient(90deg, var(--cream) 25%, var(--border) 50%, var(--cream) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+    height: 14px;
+    margin-bottom: 8px;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  .loading-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.75rem;
+    margin-bottom: 1rem;
+    animation: fadeUp 0.3s ease both;
+  }
+  .loading-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    margin-bottom: 1rem;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Divider */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 2rem 0;
+  }
+
+  /* Scrollable on small screens */
+  .reaction-row { overflow-x: auto; }
+  .plus-sign { font-size: 18px; color: var(--muted); padding: 0 2px; margin-top: -14px; }
+
+  /* ── Topic picker ── */
+  .picker-panel {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem 1.5rem;
+    margin-bottom: 1.5rem;
+    animation: fadeUp 0.45s 0.1s ease both;
+  }
+
+  .picker-search-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .picker-search {
+    flex: 1;
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 13px;
+    padding: 9px 14px 9px 36px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237a7570' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 12px center;
+    color: var(--ink);
+  }
+  .picker-search:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+  .picker-search::placeholder { color: var(--muted); }
+
+  .picker-selected-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .picker-selected-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .picker-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .picker-categories::-webkit-scrollbar { width: 4px; }
+  .picker-categories::-webkit-scrollbar-track { background: transparent; }
+  .picker-categories::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .picker-cat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .picker-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .chip {
+    font-size: 12px;
+    padding: 5px 11px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+    line-height: 1.3;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .chip.selected { background: var(--accent); color: white; border-color: var(--accent); }
+  .chip.hidden { display: none; }
+
+  .cat-group.all-hidden { display: none; }
+
+  .no-results {
+    font-size: 13px;
+    color: var(--muted);
+    padding: 8px 0;
+    font-style: italic;
+  }
+
+  /* Bottom row */
+  .bottom-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  .diff-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-right: -4px;
+  }
+
+  .diff-chips {
+    display: flex;
+    gap: 6px;
+  }
+
+  .diff-chip {
+    font-size: 12px;
+    padding: 5px 13px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .diff-chip:hover { border-color: var(--muted); }
+  .diff-chip.selected { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  .spacer { flex: 1; }
+
+  /* ── Modal overlay ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(14,14,14,0.55);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 420px;
+    animation: fadeUp 0.25s ease both;
+  }
+
+  .modal h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  .modal h2 em { color: var(--accent); font-style: italic; }
+
+  .modal p { font-size: 14px; color: var(--muted); margin-bottom: 1.25rem; line-height: 1.5; }
+
+  .modal input[type="email"],
+  .modal input[type="password"] {
+    width: 100%;
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    color: var(--ink);
+    margin-bottom: 10px;
+    display: block;
+  }
+  .modal input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+
+  .modal-btn {
+    width: 100%;
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 11px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: opacity 0.15s;
+  }
+  .modal-btn:hover { opacity: 0.88; }
+  .modal-btn.primary { background: var(--accent); color: white; }
+  .modal-btn.secondary { background: var(--step-bg); color: var(--ink); }
+  .modal-btn.stripe { background: #635bff; color: white; }
+
+  .modal-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .modal-divider::before, .modal-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  .plan-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem; }
+  .plan-card {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    background: white;
+  }
+  .plan-card:hover { border-color: var(--accent); }
+  .plan-card.featured { border-color: var(--accent); }
+  .plan-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .plan-price { font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--accent); }
+  .plan-price span { font-family: 'Instrument Sans', sans-serif; font-size: 11px; color: var(--muted); }
+  .plan-detail { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .modal-close {
+    position: absolute;
+    top: 14px; right: 16px;
+    background: none; border: none;
+    font-size: 20px; cursor: pointer;
+    color: var(--muted);
+    line-height: 1;
+  }
+  .modal-close:hover { color: var(--ink); }
+
+  .modal-footer {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 10px;
+  }
+  .modal-footer a { color: var(--accent); cursor: pointer; text-decoration: none; }
+
+  .modal-err { font-size: 12px; color: #a83415; margin-bottom: 8px; min-height: 16px; }
+
+  /* Header user area */
+  .header-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .usage-pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: var(--step-bg);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .usage-pill.warn { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+  .signin-link {
+    font-size: 13px;
+    color: var(--accent);
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: 'Instrument Sans', sans-serif;
+    padding: 0;
+  }
+  .signout-link {
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: 'Instrument Sans', sans-serif;
+    padding: 0;
+  }
+  .signout-link:hover { color: var(--ink); }
+  .pro-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    background: var(--accent);
+    color: white;
+    border-radius: 20px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Orgo<span>AI</span></div>
+  <div class="header-user">
+    <div class="usage-pill" id="usagePill"></div>
+    <button class="signin-link" id="signinBtn" onclick="openAuth('login')" style="display:none">Sign in</button>
+    <span class="pro-badge" id="proBadge" style="display:none">Pro</span>
+    <button class="signout-link" id="signoutBtn" onclick="doSignOut()" style="display:none">Sign out</button>
+  </div>
+</header>
+
+<!-- Auth modal -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" onclick="closeModal('authModal')">&times;</button>
+    <h2 id="authTitle">Welcome back</h2>
+    <p id="authSubtitle">Sign in to save your progress.</p>
+    <div class="modal-err" id="authErr"></div>
+    <input type="email" id="authEmail" placeholder="Email address">
+    <input type="password" id="authPassword" placeholder="Password">
+    <button class="modal-btn primary" id="authSubmitBtn" onclick="doAuth()">Sign in</button>
+    <div class="modal-divider">or</div>
+    <button class="modal-btn secondary" onclick="doGoogleAuth()">Continue with Google</button>
+    <div class="modal-footer" id="authToggle">
+      No account? <a onclick="toggleAuthMode()">Create one free</a>
+    </div>
+  </div>
+</div>
+
+<!-- Paywall modal -->
+<div class="modal-overlay" id="paywallModal">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" onclick="closeModal('paywallModal')">&times;</button>
+    <h2>You've used your <em>10 free</em> problems</h2>
+    <p>Upgrade to Pro for unlimited problems across all 60+ topics.</p>
+    <div class="plan-cards">
+      <div class="plan-card">
+        <div class="plan-name">Free</div>
+        <div class="plan-price">$0 <span>/mo</span></div>
+        <div class="plan-detail">10 problems/month</div>
+      </div>
+      <div class="plan-card featured">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">$10 <span>/mo</span></div>
+        <div class="plan-detail">Unlimited problems</div>
+      </div>
+    </div>
+    <button class="modal-btn stripe" onclick="doCheckout()">Upgrade to Pro — $10/month</button>
+    <button class="modal-btn secondary" onclick="openAuth('signup')">Create free account</button>
+    <div class="modal-footer">Cancel anytime. Billed monthly via Stripe.</div>
+  </div>
+</div>
+
+<main>
+  <div class="hero">
+    <h1>Master organic chemistry<br>with <em>AI-generated</em> problems</h1>
+    <p>Every problem is unique — drawn as bond-line structures with full mechanistic solutions.</p>
+  </div>
+
+  <div class="picker-panel">
+    <div class="picker-search-row">
+      <input class="picker-search" id="topicSearch" type="text" placeholder="Search topics… e.g. Grignard, aldol, EAS" oninput="filterTopics(this.value)" autocomplete="off">
+      <div>
+        <div class="picker-selected-label">Selected</div>
+        <div class="picker-selected-name" id="selectedName">Nucleophilic substitution</div>
+      </div>
+    </div>
+
+    <div class="picker-categories" id="pickerCategories"></div>
+
+    <div class="bottom-row">
+      <span class="diff-label">Level</span>
+      <div class="diff-chips" id="diffChips">
+        <div class="diff-chip selected" data-val="introductory" onclick="selectDiff(this)">Intro</div>
+        <div class="diff-chip" data-val="intermediate" onclick="selectDiff(this)">Intermediate</div>
+        <div class="diff-chip" data-val="advanced" onclick="selectDiff(this)">Advanced</div>
+      </div>
+      <div class="spacer"></div>
+      <button class="gen-btn" id="genBtn" onclick="generateProblem()">
+        &#x21BB; Generate problem
+      </button>
+    </div>
+  </div>
+
+  <div id="output"></div>
+</main>
+
+<script>
+const API_URL = "/api/generate";
+
+/* ── Full topic catalogue ── */
+const TOPIC_CATEGORIES = [
+  {
+    cat: "Substitution",
+    topics: [
+      { id: "sn2", label: "SN2 reaction", desc: "bimolecular nucleophilic substitution, backside attack, inversion of configuration, primary/secondary substrates, polar aprotic solvents" },
+      { id: "sn1", label: "SN1 reaction", desc: "unimolecular nucleophilic substitution, carbocation intermediate, racemization, tertiary substrates, polar protic solvents" },
+      { id: "sn1_vs_sn2", label: "SN1 vs SN2 competition", desc: "predicting SN1 vs SN2 based on substrate class, nucleophile strength, solvent, temperature" },
+    ]
+  },
+  {
+    cat: "Elimination",
+    topics: [
+      { id: "e2", label: "E2 elimination", desc: "bimolecular elimination, anti-periplanar geometry, strong base, Zaitsev vs Hofmann products" },
+      { id: "e1", label: "E1 elimination", desc: "unimolecular elimination, carbocation intermediate, weak base, tertiary substrates" },
+      { id: "e1cb", label: "E1cb elimination", desc: "carbanion intermediate, strong base, poor leaving group, beta-elimination" },
+      { id: "elim_vs_sub", label: "Elimination vs substitution", desc: "predicting elimination vs substitution: substrate, base/nucleophile strength, bulkiness, temperature" },
+      { id: "zaitsev", label: "Zaitsev vs Hofmann", desc: "regioselectivity of elimination, more-substituted vs less-substituted alkene, bulky base effects" },
+    ]
+  },
+  {
+    cat: "Addition to Alkenes & Alkynes",
+    topics: [
+      { id: "hx_addition", label: "HX addition (Markovnikov)", desc: "electrophilic addition of HBr/HCl/HI to alkenes, Markovnikov's rule, carbocation stability" },
+      { id: "anti_markov", label: "Hydroboration (anti-Markovnikov)", desc: "hydroboration-oxidation, BH3·THF then H2O2/NaOH, syn addition, anti-Markovnikov" },
+      { id: "halogenation", label: "Halogenation of alkenes", desc: "Br2/Cl2 addition, anti addition, bromonium ion intermediate, vicinal dihalide" },
+      { id: "halohydrin", label: "Halohydrin formation", desc: "X2/H2O, Markovnikov water attack, anti addition, bromonium/chloronium ion" },
+      { id: "epoxidation", label: "Epoxidation", desc: "mCPBA or peracid, syn addition of oxygen, epoxide formation, retention of geometry" },
+      { id: "dihydroxylation", label: "Dihydroxylation", desc: "OsO4 syn diol, or KMnO4 conditions, stereochemistry of addition" },
+      { id: "ozonolysis", label: "Ozonolysis", desc: "O3 then reductive/oxidative workup, cleavage of C=C, aldehydes vs ketones vs carboxylic acids" },
+      { id: "hydrogenation", label: "Catalytic hydrogenation", desc: "H2/Pd-C or Pt, syn addition of H2, reduction of alkenes and alkynes" },
+      { id: "alkyne_addition", label: "Addition to alkynes", desc: "HX Markovnikov to alkynes, vinyl halides, Markovnikov hydration to ketone, anti-Markovnikov to aldehyde" },
+      { id: "carbocation_rearr", label: "Carbocation rearrangements", desc: "1,2-hydride shift, 1,2-methyl shift, Wagner-Meerwein, ring expansion, stability-driven rearrangements" },
+    ]
+  },
+  {
+    cat: "Oxidation & Reduction",
+    topics: [
+      { id: "alcohol_ox", label: "Alcohol oxidation", desc: "primary alcohol to aldehyde (PCC/Swern) or carboxylic acid (Jones/KMnO4), secondary to ketone" },
+      { id: "reduction_carbonyl", label: "Carbonyl reduction", desc: "NaBH4 vs LiAlH4, selectivity, 1,2 vs 1,4 reduction, stereochemistry" },
+      { id: "birch", label: "Birch reduction", desc: "dissolving metal reduction of aromatic rings, Li/Na in NH3, regioselectivity, unconjugated diene" },
+      { id: "meerwein", label: "Meerwein-Pondorf-Verley", desc: "aluminum alkoxide reduction, hydride transfer, enone reduction" },
+      { id: "oxidation_levels", label: "Oxidation state of carbon", desc: "determining oxidation state changes, identifying oxidation vs reduction in organic transformations" },
+      { id: "sharpless", label: "Sharpless epoxidation", desc: "Ti(OiPr)4, TBHP, (+) or (-) DIPT, asymmetric epoxidation of allylic alcohols, Sharpless mnemonic" },
+    ]
+  },
+  {
+    cat: "Carbonyl Chemistry",
+    topics: [
+      { id: "nucleophilic_add", label: "Nucleophilic addition to carbonyls", desc: "addition to aldehydes/ketones: hydrides, organometallics, HCN, water, alcohols" },
+      { id: "acetal", label: "Acetal / hemiacetal formation", desc: "ROH + aldehyde/ketone under acid catalysis, protecting group chemistry, cyclic acetals" },
+      { id: "imine_enamine", label: "Imine & enamine formation", desc: "condensation with primary/secondary amine, pH control, mechanism, hydrolysis" },
+      { id: "aldol", label: "Aldol addition", desc: "base- or acid-catalyzed aldol, enolate formation, beta-hydroxy carbonyl product" },
+      { id: "aldol_cond", label: "Aldol condensation", desc: "aldol followed by dehydration, alpha-beta unsaturated carbonyl, crossed aldol selectivity" },
+      { id: "claisen", label: "Claisen condensation", desc: "ester + ester under base, beta-ketoester product, crossed Claisen, Dieckmann cyclization" },
+      { id: "michael", label: "Michael addition", desc: "1,4-conjugate addition to enones, soft nucleophiles, Michael donors and acceptors" },
+      { id: "robinson", label: "Robinson annulation", desc: "Michael + aldol sequence, cyclohexenone ring formation" },
+      { id: "knoevenagel", label: "Knoevenagel condensation", desc: "activated methylene compound + aldehyde, amine catalyst, product with active methylene" },
+      { id: "wittig", label: "Wittig reaction", desc: "ylide + carbonyl, phosphonium salt, alkene synthesis, E/Z selectivity" },
+      { id: "horner_wadsworth", label: "Horner-Wadsworth-Emmons", desc: "stabilized phosphonate ylide, Z-selective or E-selective alkene synthesis" },
+      { id: "reformatsky", label: "Reformatsky reaction", desc: "alpha-bromo ester + Zn + carbonyl, zinc enolate, beta-hydroxy ester product" },
+    ]
+  },
+  {
+    cat: "Carboxylic Acid Derivatives",
+    topics: [
+      { id: "acyl_sub", label: "Nucleophilic acyl substitution", desc: "relative reactivity of acid chlorides, anhydrides, esters, amides; mechanism and leaving group ability" },
+      { id: "ester_hydrolysis", label: "Ester hydrolysis", desc: "acid- or base-catalyzed (saponification), mechanism, Fischer esterification" },
+      { id: "amide_formation", label: "Amide bond formation", desc: "amine + acid chloride or anhydride, coupling reagents (DCC/EDC), peptide bond" },
+      { id: "grignard", label: "Grignard reaction", desc: "RMgX + aldehyde/ketone/ester/CO2, addition product, retrosynthetic logic" },
+      { id: "organolithium", label: "Organolithium reactions", desc: "RLi addition to carbonyls, more reactive than Grignard, selectivity" },
+      { id: "lah_reduction", label: "LiAlH4 reductions", desc: "reduction of esters to primary alcohol, amides to amines, carboxylic acids, selectivity vs NaBH4" },
+    ]
+  },
+  {
+    cat: "Aromatic Chemistry",
+    topics: [
+      { id: "eas", label: "Electrophilic aromatic substitution", desc: "EAS general mechanism, arenium ion, halogenation, nitration, sulfonation, Friedel-Crafts" },
+      { id: "friedel_crafts_alkyl", label: "Friedel-Crafts alkylation", desc: "AlCl3 catalyst, carbocation electrophile, rearrangements, polyalkylation problem" },
+      { id: "friedel_crafts_acyl", label: "Friedel-Crafts acylation", desc: "AlCl3 + acid chloride/anhydride, acylium ion, no rearrangement, deactivating product" },
+      { id: "directing_effects", label: "Directing effects", desc: "ortho/para vs meta directors, activating vs deactivating groups, lone pairs vs resonance withdrawal" },
+      { id: "nas", label: "Nucleophilic aromatic substitution", desc: "NAS via Meisenheimer complex, EWG requirement, leaving group, SNAr mechanism" },
+      { id: "benzyne", label: "Benzyne mechanism", desc: "elimination-addition, aryne intermediate, symmetric addition, strong base conditions" },
+      { id: "diazotization", label: "Diazonium chemistry", desc: "ArN2+, Sandmeyer reaction, diazonium to halide/nitrile/phenol, azo coupling" },
+      { id: "birch_aromatic", label: "Birch reduction (aromatic)", desc: "Li/Na/K in liquid NH3, regioselectivity around substituents, unconjugated diene product" },
+    ]
+  },
+  {
+    cat: "Enolate Chemistry",
+    topics: [
+      { id: "enolate_form", label: "Enolate formation", desc: "kinetic vs thermodynamic enolate, LDA vs NaOEt, alpha-deprotonation" },
+      { id: "alkylation", label: "Enolate alkylation", desc: "alpha-alkylation, malonate/acetoacetate synthesis, decarboxylation" },
+      { id: "acetoacetic", label: "Acetoacetic ester synthesis", desc: "ethyl acetoacetate, alkylation, decarboxylation to methyl ketone" },
+      { id: "malonic", label: "Malonic ester synthesis", desc: "diethyl malonate, double alkylation, hydrolysis, decarboxylation to substituted acetic acid" },
+      { id: "mannich", label: "Mannich reaction", desc: "aldehyde + amine + active methylene (enamine pathway), Mannich base product" },
+    ]
+  },
+  {
+    cat: "Stereochemistry",
+    topics: [
+      { id: "stereocenters", label: "Stereocenters & R/S configuration", desc: "CIP priority rules, R vs S assignment, multiple stereocenters" },
+      { id: "enantiomers", label: "Enantiomers & optical activity", desc: "mirror image relationships, optical rotation, racemic mixtures, chiral resolution" },
+      { id: "diastereomers", label: "Diastereomers & meso compounds", desc: "diastereomeric relationships, meso compounds, erythro/threo, syn/anti" },
+      { id: "ez_alkenes", label: "E/Z alkene geometry", desc: "CIP rules for double bonds, E vs Z assignment, cis/trans nomenclature" },
+      { id: "stereo_reactions", label: "Stereochemistry of reactions", desc: "retention, inversion, racemization — SN1, SN2, addition reactions and their stereochemical outcomes" },
+    ]
+  },
+  {
+    cat: "Amines & Nitrogen",
+    topics: [
+      { id: "amine_basicity", label: "Amine basicity & nucleophilicity", desc: "pKa of conjugate acids, alkyl vs aryl amines, inductive vs resonance effects, steric effects" },
+      { id: "amine_synthesis", label: "Amine synthesis", desc: "Gabriel synthesis, reductive amination, Hofmann rearrangement, Curtius, Leimgruber-Batcho" },
+      { id: "reductive_amination", label: "Reductive amination", desc: "aldehyde/ketone + amine → imine/iminium → NaBH3CN reduction, primary/secondary amine synthesis" },
+      { id: "hofmann_rearr", label: "Hofmann rearrangement", desc: "amide + Br2/NaOH → isocyanate → amine, carbon loss, nitrene-like intermediate" },
+      { id: "curtius", label: "Curtius rearrangement", desc: "acyl azide → isocyanate → amine, nitrene, thermal rearrangement" },
+    ]
+  },
+  {
+    cat: "Pericyclic Reactions",
+    topics: [
+      { id: "diels_alder", label: "Diels-Alder reaction", desc: "diene + dienophile, [4+2] cycloaddition, endo rule, stereochemistry, FMO theory, retro-Diels-Alder" },
+      { id: "cope", label: "Cope rearrangement", desc: "[3,3]-sigmatropic, 1,5-diene substrate, chair-like TS, oxy-Cope variant" },
+      { id: "claisen_rearr", label: "Claisen rearrangement", desc: "[3,3]-sigmatropic of allyl vinyl ether, chair-like TS, aromatic Claisen, Ireland-Claisen" },
+      { id: "electrocyclic", label: "Electrocyclic reactions", desc: "thermal vs photochemical, conrotatory vs disrotatory, Woodward-Hoffmann rules, ring opening/closing" },
+      { id: "cycloaddition", label: "[2+2] Cycloaddition", desc: "photochemical [2+2], suprafacial-suprafacial, cyclobutane ring formation" },
+      { id: "sigmatropic", label: "Sigmatropic rearrangements", desc: "[1,2], [1,5], [2,3]-sigmatropic shifts, Woodward-Hoffmann, stereochemical outcomes" },
+    ]
+  },
+  {
+    cat: "Free Radical Chemistry",
+    topics: [
+      { id: "radical_halogen", label: "Radical halogenation", desc: "Cl2 or Br2 + hv, initiation/propagation/termination, selectivity (Cl vs Br), BDE, stability of radicals" },
+      { id: "radical_addition", label: "Radical addition (anti-Markovnikov HBr)", desc: "ROOR or hv initiator, HBr anti-Markovnikov addition, radical chain mechanism" },
+      { id: "allylic_radical", label: "Allylic & benzylic radicals", desc: "NBS bromination, allylic/benzylic stability, resonance-stabilized radicals, regioselectivity" },
+    ]
+  },
+  {
+    cat: "Named Reactions",
+    topics: [
+      { id: "swern", label: "Swern oxidation", desc: "DMSO/oxalyl chloride, mild alcohol oxidation to aldehyde/ketone, no over-oxidation" },
+      { id: "dess_martin", label: "Dess-Martin oxidation", desc: "DMP reagent, alcohol to carbonyl, mild conditions, functional group tolerance" },
+      { id: "wolff_kishner", label: "Wolff-Kishner reduction", desc: "hydrazone + KOH/heat, C=O → CH2, complementary to Clemmensen" },
+      { id: "clemmensen", label: "Clemmensen reduction", desc: "Zn(Hg)/HCl, C=O → CH2 in acid-sensitive substrates" },
+      { id: "beckmann", label: "Beckmann rearrangement", desc: "oxime + H+, migration of anti-group, lactam product (Nylon synthesis)" },
+      { id: "baeyer_villiger", label: "Baeyer-Villiger oxidation", desc: "peracid + ketone → ester or lactone, migratory aptitude, ring expansion" },
+      { id: "pinacol", label: "Pinacol rearrangement", desc: "1,2-diol + H+, 1,2-shift after ionization, ketone product" },
+      { id: "favorskii", label: "Favorskii rearrangement", desc: "alpha-halo ketone + base, cyclopropanone intermediate, ring contraction" },
+      { id: "ramberg_backlund", label: "Ramberg-Bäcklund", desc: "alpha-halo sulfone, episulfone intermediate, extrusion of SO2, alkene" },
+      { id: "stork_enamine", label: "Stork enamine reaction", desc: "enamine + electrophile, alkylation or acylation at alpha-carbon, hydrolysis" },
+      { id: "corey_house", label: "Corey-House synthesis", desc: "lithium dialkylcuprate (Gilman reagent) + alkyl halide, cross-coupling, soft nucleophile" },
+      { id: "simmons_smith", label: "Simmons-Smith reaction", desc: "Zn-CH2I2, carbene-like, syn cyclopropanation of alkenes, homoallylic directing" },
+    ]
+  },
+  {
+    cat: "Spectroscopy & Structure",
+    topics: [
+      { id: "nmr_predict", label: "1H NMR prediction", desc: "predict chemical shifts, splitting patterns, integration; identify compound from NMR data" },
+      { id: "ir_predict", label: "IR spectroscopy", desc: "identify functional groups from IR absorptions, characteristic carbonyl, OH, NH, C=C peaks" },
+      { id: "ms_predict", label: "Mass spectrometry", desc: "molecular ion, fragmentation patterns, base peak, McLafferty rearrangement, nitrogen rule" },
+      { id: "structure_det", label: "Structure determination", desc: "combine NMR + IR + MS + molecular formula to determine unknown structure" },
+    ]
+  },
+  {
+    cat: "Retrosynthesis & Multi-step",
+    topics: [
+      { id: "retrosynthesis", label: "Retrosynthetic analysis", desc: "disconnection strategy, synthons, FGI, protecting groups, multi-step planning" },
+      { id: "multistep_2", label: "2-step synthesis", desc: "plan a two-step synthesis from given starting material to target molecule" },
+      { id: "multistep_3", label: "3–4 step synthesis", desc: "design a 3-4 step route, choose reagents, justify each step" },
+      { id: "protecting_groups", label: "Protecting groups", desc: "silyl ethers, acetals, Boc/Cbz for amines, chemoselective reactions, deprotection conditions" },
+    ]
+  },
+  {
+    cat: "Heterocycles & Special Topics",
+    topics: [
+      { id: "pyridine", label: "Pyridine chemistry", desc: "EAS vs NAS on pyridine, nucleophilic addition at C2/C4, basicity, N-oxide" },
+      { id: "furan_pyrrole", label: "Furan, pyrrole & thiophene", desc: "electron-rich heterocycles, EAS reactivity, Paal-Knorr synthesis, ring opening" },
+      { id: "indole", label: "Indole & benzofuran", desc: "EAS at C3, Fischer indole synthesis, alkylation, acylation" },
+      { id: "carbohydrates", label: "Carbohydrate chemistry", desc: "ring-chain tautomerism, anomers, glycosidation, oxidation/reduction of sugars" },
+      { id: "amino_acids", label: "Amino acid reactions", desc: "zwitterion, isoelectric point, peptide bond, protection/deprotection in synthesis" },
+    ]
+  }
+];
+
+/* Build topic lookup flat map */
+const TOPIC_MAP = {};
+TOPIC_CATEGORIES.forEach(c => c.topics.forEach(t => { TOPIC_MAP[t.id] = t; }));
+
+let selectedTopic = 'sn2';
+let selectedDiff = 'introductory';
+
+function buildPicker() {
+  const container = document.getElementById('pickerCategories');
+  container.innerHTML = '';
+  TOPIC_CATEGORIES.forEach(cat => {
+    const group = document.createElement('div');
+    group.className = 'cat-group';
+    group.dataset.cat = cat.cat;
+    let html = `<div class="picker-cat-label">${cat.cat}</div><div class="picker-chips">`;
+    cat.topics.forEach(t => {
+      const sel = t.id === selectedTopic ? ' selected' : '';
+      html += `<div class="chip${sel}" data-id="${t.id}" onclick="selectTopic('${t.id}', this)">${t.label}</div>`;
+    });
+    html += '</div>';
+    group.innerHTML = html;
+    container.appendChild(group);
+  });
+  document.getElementById('selectedName').textContent = TOPIC_MAP[selectedTopic]?.label || '';
+}
+
+function selectTopic(id, el) {
+  selectedTopic = id;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  document.getElementById('selectedName').textContent = TOPIC_MAP[id]?.label || '';
+}
+
+function selectDiff(el) {
+  selectedDiff = el.dataset.val;
+  document.querySelectorAll('.diff-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function filterTopics(query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll('.cat-group').forEach(group => {
+    let anyVisible = false;
+    group.querySelectorAll('.chip').forEach(chip => {
+      const label = chip.textContent.toLowerCase();
+      const id = chip.dataset.id;
+      const desc = (TOPIC_MAP[id]?.desc || '').toLowerCase();
+      const visible = !q || label.includes(q) || desc.includes(q);
+      chip.classList.toggle('hidden', !visible);
+      if (visible) anyVisible = true;
+    });
+    group.classList.toggle('all-hidden', !anyVisible);
+  });
+  // show no-results
+  let noRes = document.getElementById('noResults');
+  const allHidden = [...document.querySelectorAll('.cat-group')].every(g => g.classList.contains('all-hidden'));
+  if (allHidden && q) {
+    if (!noRes) {
+      noRes = document.createElement('div');
+      noRes.id = 'noResults';
+      noRes.className = 'no-results';
+      noRes.textContent = 'No topics match "' + query + '"';
+      document.getElementById('pickerCategories').appendChild(noRes);
+    }
+  } else if (noRes) { noRes.remove(); }
+}
+
+/* ── Supabase + auth ── */
+const SUPABASE_URL = 'https://kcrdigcrgegckszrxzgl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjcmRpZ2NyZ2VnY2tzenJ4emdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTM5NzksImV4cCI6MjA5NDQyOTk3OX0.AdKHAmgSbD1nd-uAIXS4G6CZrtJFgb1HAIXv3wy_CoM';
+let supabase = null;
+try {
+  if (window.supabase && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+} catch(e) { console.warn('Supabase not configured:', e); }
+
+const FREE_LIMIT = 10;
+let currentUser = null;
+let isPro = false;
+let guestUsage = parseInt(localStorage.getItem('orgoai_usage') || '0');
+
+function getUsageKey() { return 'orgoai_usage'; }
+
+async function initAuth() {
+  if (!supabase) { updateUsageUI(); return; }
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) await handleUser(session.user);
+  else updateUsageUI();
+
+  supabase.auth.onAuthStateChange(async (_event, session) => {
+    if (session?.user) await handleUser(session.user);
+    else { currentUser = null; isPro = false; updateUsageUI(); }
+  });
+}
+
+async function handleUser(user) {
+  currentUser = user;
+  // Check subscription status via our API
+  try {
+    const res = await fetch('/api/subscription', {
+      headers: { 'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` }
+    });
+    const d = await res.json();
+    isPro = d.isPro || false;
+  } catch(e) { isPro = false; }
+  updateUsageUI();
+}
+
+function updateUsageUI() {
+  const pill = document.getElementById('usagePill');
+  const signinBtn = document.getElementById('signinBtn');
+  const signoutBtn = document.getElementById('signoutBtn');
+  const proBadge = document.getElementById('proBadge');
+
+  if (isPro) {
+    pill.textContent = 'Unlimited';
+    pill.classList.remove('warn');
+    proBadge.style.display = 'inline';
+    signinBtn.style.display = 'none';
+    signoutBtn.style.display = 'inline';
+  } else if (currentUser) {
+    const used = guestUsage;
+    const left = Math.max(0, FREE_LIMIT - used);
+    pill.textContent = `${left} left this month`;
+    pill.classList.toggle('warn', left <= 3);
+    proBadge.style.display = 'none';
+    signinBtn.style.display = 'none';
+    signoutBtn.style.display = 'inline';
+  } else {
+    const left = Math.max(0, FREE_LIMIT - guestUsage);
+    pill.textContent = `${left} free problems left`;
+    pill.classList.toggle('warn', left <= 3);
+    signinBtn.style.display = 'inline';
+    signoutBtn.style.display = 'none';
+    proBadge.style.display = 'none';
+  }
+}
+
+function canGenerate() {
+  if (isPro) return true;
+  return guestUsage < FREE_LIMIT;
+}
+
+function recordUsage() {
+  guestUsage++;
+  localStorage.setItem(getUsageKey(), guestUsage);
+  updateUsageUI();
+}
+
+function showPaywall() {
+  document.getElementById('paywallModal').classList.add('open');
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+let authMode = 'login';
+function openAuth(mode) {
+  authMode = mode || 'login';
+  const isLogin = authMode === 'login';
+  document.getElementById('authTitle').textContent = isLogin ? 'Welcome back' : 'Create your account';
+  document.getElementById('authSubtitle').textContent = isLogin ? 'Sign in to save your progress.' : 'Free — 10 problems per month.';
+  document.getElementById('authSubmitBtn').textContent = isLogin ? 'Sign in' : 'Create account';
+  document.getElementById('authToggle').innerHTML = isLogin
+    ? 'No account? <a onclick="toggleAuthMode()">Create one free</a>'
+    : 'Already have one? <a onclick="toggleAuthMode()">Sign in</a>';
+  document.getElementById('authErr').textContent = '';
+  closeModal('paywallModal');
+  openModal('authModal');
+}
+
+function toggleAuthMode() {
+  openAuth(authMode === 'login' ? 'signup' : 'login');
+}
+
+async function doAuth() {
+  if (!supabase) { alert('Auth not configured yet.'); return; }
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errEl = document.getElementById('authErr');
+  errEl.textContent = '';
+  const btn = document.getElementById('authSubmitBtn');
+  btn.textContent = '...';
+  btn.disabled = true;
+  try {
+    const fn = authMode === 'login'
+      ? supabase.auth.signInWithPassword({ email, password })
+      : supabase.auth.signUp({ email, password });
+    const { error } = await fn;
+    if (error) { errEl.textContent = error.message; }
+    else { closeModal('authModal'); }
+  } finally { btn.disabled = false; btn.textContent = authMode === 'login' ? 'Sign in' : 'Create account'; }
+}
+
+async function doGoogleAuth() {
+  if (!supabase) { alert('Auth not configured yet.'); return; }
+  await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+}
+
+async function doSignOut() {
+  if (supabase) await supabase.auth.signOut();
+  currentUser = null; isPro = false; updateUsageUI();
+}
+
+async function doCheckout() {
+  if (!currentUser) { openAuth('signup'); return; }
+  try {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const res = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+    });
+    const { url } = await res.json();
+    if (url) window.location.href = url;
+  } catch(e) { alert('Checkout failed. Please try again.'); }
+}
+
+initAuth();
+
+
+let solutionVisible = false;
+let hintVisible = false;
+let drawer = null;
+
+const CSS_W = 150, CSS_H = 110;
+const STEP_W = 130, STEP_H = 90;
+
+function waitForSmilesDrawer(cb, attempts) {
+  attempts = attempts || 0;
+  if (typeof SmilesDrawer !== 'undefined' && SmilesDrawer.Drawer) { cb(); }
+  else if (attempts < 40) { setTimeout(function() { waitForSmilesDrawer(cb, attempts + 1); }, 150); }
+  else { console.error('SmilesDrawer failed to load.'); }
+}
+
+function prepareCanvas(canvas, w, h) {
+  w = w || CSS_W; h = h || CSS_H;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+}
+
+function getDrawer(w, h) {
+  w = w || CSS_W; h = h || CSS_H;
+  return new SmilesDrawer.Drawer({
+    width: w,
+    height: h,
+    bondThickness: 1.2,
+    shortBondLength: 0.85,
+    bondSpacing: 5,
+    atomVisualization: 'default',
+    isomeric: true,
+    debug: false,
+    terminalCarbons: false,
+    explicitHydrogens: false,
+    fontSizeLarge: 5,
+    fontSizeSmall: 3,
+    themes: {
+      light: {
+        C: '#0e0e0e', O: '#c8401a', N: '#1a3d6b', F: '#1a6b3a',
+        CL: '#1a6b3a', BR: '#6b3a1a', I: '#5a1a6b', P: '#7a5200',
+        S: '#7a6200', BACKGROUND: '#ffffff'
+      }
+    }
+  });
+}
+
+function drawSMILES(smiles, canvasId, w, h) {
+  waitForSmilesDrawer(function() {
+    try {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      prepareCanvas(canvas, w, h);
+      const d = getDrawer(w, h);
+      SmilesDrawer.parse(smiles, function(tree) {
+        d.draw(tree, canvasId, 'light', false);
+      }, function(err) { console.warn('SMILES parse error:', smiles, err); });
+    } catch(e) { console.warn('Draw error:', e); }
+  });
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function makeCanvasId() {
+  return 'mol_' + Math.random().toString(36).substr(2,9);
+}
+
+function buildReactionHTML(data, showProduct) {
+  let html = '<div class="reaction-row">';
+  const reactants = data.reactants || [];
+  reactants.forEach((r, i) => {
+    const id = makeCanvasId();
+    html += `<div class="mol-block">
+      <canvas id="${id}" data-smiles="${escapeHtml(r.smiles)}"></canvas>
+      <div class="mol-name">${escapeHtml(r.name)}</div>
+    </div>`;
+    if (i < reactants.length - 1) html += `<span class="plus-sign">+</span>`;
+  });
+
+  html += `<div class="rxn-arrow">
+    <div class="arrow-line">&#x2192;</div>
+    <div class="reagent-text">${escapeHtml(data.reagents || '')}</div>
+  </div>`;
+
+  if (showProduct && data.product) {
+    const id = makeCanvasId();
+    html += `<div class="mol-block">
+      <canvas id="${id}" data-smiles="${escapeHtml(data.product.smiles)}"></canvas>
+      <div class="mol-name">${escapeHtml(data.product.name)}</div>
+    </div>`;
+  } else {
+    html += `<div class="question-box">?</div>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function renderAllMolecules() {
+  document.querySelectorAll('canvas[data-smiles]').forEach(canvas => {
+    const smiles = canvas.getAttribute('data-smiles');
+    if (!smiles || smiles === '?') return;
+    const isStep = canvas.closest('.step-struct') !== null;
+    drawSMILES(smiles, canvas.id, isStep ? STEP_W : CSS_W, isStep ? STEP_H : CSS_H);
+  });
+}
+
+function renderProblem(data) {
+  solutionVisible = false;
+  hintVisible = false;
+  currentData = data;
+
+  const topicLabel = TOPIC_MAP[selectedTopic]?.label || selectedTopic;
+  const diffLabel = selectedDiff;
+
+  let html = `<div class="problem-card">
+    <div class="card-meta">
+      <span class="tag tag-topic">${escapeHtml(topicLabel)}</span>
+      <span class="tag tag-diff">${escapeHtml(diffLabel)}</span>
+      ${(data.tags||[]).map(t => `<span class="tag tag-diff">${escapeHtml(t)}</span>`).join('')}
+    </div>
+    <div class="problem-q">${escapeHtml(data.question)}</div>
+    ${buildReactionHTML(data, false)}
+  </div>
+
+  <div class="action-row">
+    <button class="outline-btn" id="hintBtn" onclick="toggleHint()">Show hint</button>
+    <button class="outline-btn" id="solutionBtn" onclick="toggleSolution()">Show full solution</button>
+    <button class="outline-btn" onclick="generateProblem()" style="margin-left:auto;">New problem &#x21BB;</button>
+  </div>
+
+  <div id="hintSection"></div>
+  <div id="solutionSection"></div>`;
+
+  document.getElementById('output').innerHTML = html;
+  setTimeout(renderAllMolecules, 80);
+}
+
+function toggleHint() {
+  hintVisible = !hintVisible;
+  const btn = document.getElementById('hintBtn');
+  const section = document.getElementById('hintSection');
+  if (hintVisible) {
+    btn.classList.add('active');
+    btn.textContent = 'Hide hint';
+    section.innerHTML = `<div class="hint-card">
+      <div class="section-label">Hint</div>
+      ${escapeHtml(currentData.hint || 'Consider the substrate, nucleophile/base strength, and reaction conditions.')}
+    </div>`;
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = 'Show hint';
+    section.innerHTML = '';
+  }
+}
+
+function toggleSolution() {
+  solutionVisible = !solutionVisible;
+  const btn = document.getElementById('solutionBtn');
+  const section = document.getElementById('solutionSection');
+  if (!solutionVisible) {
+    btn.classList.remove('active');
+    btn.textContent = 'Show full solution';
+    section.innerHTML = '';
+    return;
+  }
+  btn.classList.add('active');
+  btn.textContent = 'Hide solution';
+
+  const steps = currentData.steps || [];
+  const stepsHTML = steps.map((s, i) => {
+    const text = typeof s === 'string' ? s : (s.text || '');
+    const smiles = typeof s === 'object' && s.smiles ? s.smiles : null;
+    const canvasId = smiles ? makeCanvasId() : null;
+    const structHTML = smiles
+      ? `<div class="step-struct">
+           <canvas id="${canvasId}" data-smiles="${escapeHtml(smiles)}"></canvas>
+         </div>`
+      : '';
+    return `<div class="step-item" style="animation-delay:${i*0.05}s">
+      <div class="step-num">${i+1}</div>
+      <div class="step-body">
+        <div class="step-content">${escapeHtml(text)}</div>
+        ${structHTML}
+      </div>
+    </div>`;
+  }).join('');
+
+  const productId = makeCanvasId();
+
+  section.innerHTML = `<div class="solution-section">
+    <div class="steps-card">
+      <div class="section-label">Step-by-step mechanism</div>
+      ${stepsHTML}
+    </div>
+    <div class="answer-card">
+      <div class="answer-mol">
+        <canvas id="${productId}" data-smiles="${escapeHtml(currentData.product?.smiles||'')}"></canvas>
+      </div>
+      <div class="answer-label-block">
+        <div class="label">Major product</div>
+        <div class="answer-name">${escapeHtml(currentData.product?.name||'')}</div>
+        ${currentData.product?.iupac ? `<div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--green);margin-top:4px;">${escapeHtml(currentData.product.iupac)}</div>` : ''}
+      </div>
+    </div>
+    ${currentData.explanation ? `<div class="explanation-card">
+      <div class="section-label">Why this mechanism?</div>
+      <p>${escapeHtml(currentData.explanation)}</p>
+    </div>` : ''}
+  </div>`;
+
+  setTimeout(renderAllMolecules, 80);
+}
+
+function showLoading() {
+  document.getElementById('output').innerHTML = `
+    <div class="loading-card">
+      <div class="loading-label">&#x2299; Generating problem...</div>
+      <div class="skeleton" style="width:60%"></div>
+      <div class="skeleton" style="width:85%"></div>
+      <div class="skeleton" style="width:70%"></div>
+      <div style="height:16px"></div>
+      <div style="display:flex;gap:12px;align-items:center;background:white;border:1px solid var(--border);border-radius:10px;padding:1.25rem;">
+        <div style="width:150px;height:110px;background:var(--cream);border-radius:6px;"></div>
+        <div style="font-size:24px;color:var(--border)">&#x2192;</div>
+        <div style="width:150px;height:110px;background:var(--cream);border-radius:6px;border:2px dashed var(--border);"></div>
+      </div>
+    </div>`;
+}
+
+function showError(msg) {
+  document.getElementById('output').innerHTML = `<div class="error-msg">&#x26A0; ${escapeHtml(msg)}</div>`;
+}
+
+async function generateProblem() {
+  if (!canGenerate()) { showPaywall(); return; }
+  const topic = selectedTopic;
+  const difficulty = selectedDiff;
+  const topicObj = TOPIC_MAP[topic] || { label: topic, desc: topic };
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">&#x21BB;</span> Generating...';
+  showLoading();
+
+  const diffInstructions = {
+    introductory: "Use simple, monosubstituted molecules. One-step reaction. No stereochemistry complications. Clear-cut mechanism.",
+    intermediate: "Include secondary/tertiary substrates. May involve stereochemistry or regioselectivity. 2-step reasoning.",
+    advanced: "Use complex, polyfunctional substrates. Include stereochemistry, regioselectivity competition, or multi-step reasoning. May involve rearrangements."
+  };
+
+  const systemPrompt = `You are an expert organic chemistry professor generating exam problems. Respond ONLY with a valid JSON object — no markdown, no preamble, nothing outside the JSON.
+
+JSON structure (follow exactly):
+{
+  "question": "Short, direct exam question. 1-2 sentences max.",
+  "tags": ["2-4 concept tags"],
+  "hint": "One sentence. Nudge without revealing the answer.",
+  "reactants": [
+    { "smiles": "VALID_SMILES", "name": "name" }
+  ],
+  "reagents": "conditions above the arrow",
+  "steps": [
+    {
+      "text": "SHORT. Max 12 words. Plain English. What happens in this step.",
+      "smiles": "VALID_SMILES of the intermediate or key species formed in this step, or null if no new structure"
+    }
+  ],
+  "product": {
+    "smiles": "VALID_SMILES",
+    "name": "common name",
+    "iupac": "IUPAC name"
+  },
+  "explanation": "2 short sentences MAX. Why THIS mechanism and not the alternative. Plain language, no jargon padding."
+}
+
+STEP TEXT RULES — critical:
+- Each step text must be ≤12 words. Cut all filler.
+- Bad: "The hydroxide ion, acting as a strong nucleophile, performs a backside attack on the electrophilic carbon center bearing the bromine leaving group."
+- Good: "OH⁻ attacks carbon from the back (backside attack)."
+- Use arrows notation like → where helpful. Be blunt.
+
+STEP SMILES RULES:
+- Include smiles for any step where a new species forms: intermediates, carbocations, enolates, transition states, protonated species.
+- For simple electron-pushing steps with no new isolable structure, use null.
+- Aim for smiles on at least 2-3 of the steps.
+
+EXPLANATION RULES:
+- Max 2 sentences. Answer: "Why this mechanism?" and "Why not the alternative?"
+- Bad: "The SN2 mechanism is favored here due to the primary nature of the substrate combined with the presence of a strong nucleophile in a polar aprotic solvent which enhances nucleophilicity."
+- Good: "Primary substrate + strong nucleophile = SN2. SN1 is out — a primary carbocation would be too unstable."
+
+SMILES VALIDITY:
+- Must parse with SmilesDrawer/RDKit. Rings: C1CCCCC1. Double bond: C=C. Triple: C#C.
+- Stereochemistry: @ tetrahedral, / \\ double bond. No charges on neutral molecules.
+- Benzene: c1ccccc1. Keep SMILES as simple as possible.
+
+Vary substrates, leaving groups, nucleophiles, and solvents. Never repeat the exact same molecule.`;
+
+  const userPrompt = `Generate a ${difficulty} level organic chemistry problem on: ${topicObj.label}.
+Topic details: ${topicObj.desc}
+Difficulty guidance: ${diffInstructions[difficulty]}
+Make it realistic for a university organic chemistry exam. SMILES must be valid.`;
+
+  try {
+    const token = supabase ? (await supabase.auth.getSession()).data.session?.access_token : null;
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ systemPrompt, userPrompt })
+    });
+
+    if (response.status === 402) {
+      showPaywall();
+      btn.disabled = false;
+      btn.innerHTML = '&#x21BB; Generate problem';
+      return;
+    }
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `API error ${response.status}`);
+    }
+
+    const data = await response.json();
+    const rawText = data.text || '';
+    const cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch(e) {
+      const match = cleaned.match(/\{[\s\S]*\}/);
+      if (match) {
+        parsed = JSON.parse(match[0]);
+      } else {
+        throw new Error('Could not parse AI response as JSON. Please try again.');
+      }
+    }
+
+    renderProblem(parsed);
+    recordUsage();
+
+  } catch(e) {
+    showError('Could not generate problem: ' + e.message + '. Please try again.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '&#x21BB; Generate problem';
+  }
+}
+
+// Empty state on load
+document.getElementById('output').innerHTML = `
+  <div class="empty-state">
+    <span class="empty-icon">C₆H₆</span>
+    <p>Choose a topic and difficulty, then generate your first problem.</p>
+  </div>`;
+</script>
+</body>
+</html>
