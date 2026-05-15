@@ -1068,7 +1068,7 @@ TOPIC_CATEGORIES.forEach(c => c.topics.forEach(t => { TOPIC_MAP[t.id] = t; }));
 let selectedTopic = 'sn2';
 let selectedDiff = 'introductory';
 initAuth();
-function buildPicker();
+function buildPicker() {
   const container = document.getElementById('pickerCategories');
   container.innerHTML = '';
   TOPIC_CATEGORIES.forEach(cat => {
