@@ -1,15 +1,15 @@
-{
-  "version": 2,
-  "builds": [
-    { "src": "api/*.js", "use": "@vercel/node" },
-    { "src": "public/**", "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/api/generate", "dest": "/api/generate.js" },
-    { "src": "/api/checkout", "dest": "/api/checkout.js" },
-    { "src": "/api/webhook", "dest": "/api/webhook.js" },
-    { "src": "/api/subscription", "dest": "/api/subscription.js" },
-    { "src": "/(.*)", "dest": "/public/$1" },
-    { "src": "/", "dest": "/public/index.html" }
-  ]
-}
+version	2
+outputDirectory	"public"
+rewrites	
+0	
+source	"/api/generate"
+destination	"/api/generate.js"
+1	
+source	"/api/checkout"
+destination	"/api/checkout.js"
+2	
+source	"/api/webhook"
+destination	"/api/webhook.js"
+3	
+source	"/api/subscription"
+destination	"/api/subscription.js"
