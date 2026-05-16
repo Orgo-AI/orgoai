@@ -1,9 +1,3 @@
 {
-  "version": 2,
-  "rewrites": [
-    { "source": "/api/generate", "destination": "/api/generate.js" },
-    { "source": "/api/checkout", "destination": "/api/checkout.js" },
-    { "source": "/api/webhook", "destination": "/api/webhook.js" },
-    { "source": "/api/subscription", "destination": "/api/subscription.js" }
-  ]
+  "version": 2
 }
