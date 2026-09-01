@@ -1527,7 +1527,6 @@ function showError(msg) {
 }
 
 async function generateProblem() {
-  if (!canGenerate()) { showPaywall(); return; }
   const topic = selectedTopic;
   const difficulty = selectedDiff;
   const topicObj = TOPIC_MAP[topic] || { label: topic, desc: topic };
