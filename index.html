@@ -1183,14 +1183,12 @@ function updateUsageUI() {
   } else if (currentUser) {
     const used = guestUsage;
     const left = Math.max(0, FREE_LIMIT - used);
-    pill.textContent = `${left} left this month`;
     pill.classList.toggle('warn', left <= 3);
     proBadge.style.display = 'none';
     signinBtn.style.display = 'none';
     signoutBtn.style.display = 'inline';
   } else {
     const left = Math.max(0, FREE_LIMIT - guestUsage);
-    pill.textContent = `${left} free problems left`;
     pill.classList.toggle('warn', left <= 3);
     signinBtn.style.display = 'inline';
     signoutBtn.style.display = 'none';
